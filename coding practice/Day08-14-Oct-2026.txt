@@ -1,5 +1,136 @@
-Day 09 — Docker Integration with Jenkins & GitLab
+Day 08 — Introduction to Docker and CI/CD Pipelines
+
+🔹 Ansible — Install Docker Compose
+
+```yaml
+- name: Install Docker Compose
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install dependencies
+      yum:
+        name: python3-pip
+        state: present
+    - name: Install docker-compose
+      pip:
+        name: docker-compose
+```
+
+🔹 Terraform — EC2 with Security Group and EBS Volume
+
+```hcl
+resource "aws_security_group" "allow_ssh_http" {
+  name        = "allow_ssh_http"
+  description = "Allow SSH and HTTP access"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "pathnex_ec2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "t3.medium"
+
+  vpc_security_group_ids = [
+    aws_security_group.allow_ssh_http.id
+  ]
+
+  ebs_block_device {
+    device_name = "/dev/sdh"
+    volume_size = 30
+  }
+}
+```
+
+🔹 Kubernetes — Service with NodePort
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: pathnex-service
+spec:
+  type: NodePort
+  selector:
+    app: pathnex-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30007
+```
+
+🔹 Jenkinsfile — Docker Build and Push
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build('pathnex-app')
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://docker.io', 'docker-credentials') {
+                        docker.image('pathnex-app').push('latest')
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+🔹 GitLab CI/CD — Build and Push Docker Image
+
+```yaml
+stages:
+  - build
+  - push
+
+build:
+  stage: build
+  script:
+    - docker build -t pathnex-app .
+
+push:
+  stage: push
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+    - docker push pathnex-app
+```
+
+🔹 Docker — Alpine Linux
+
+```dockerfile
+FROM alpine:latest
+WORKDIR /opt/pathnex/alpine-app
+CMD ["echo", "Hello Pathnex"]
+```
+
+---
+
+Day 09 — Docker Integration with Jenkins and GitLab
+
 🔹 Ansible — Setup Docker Container for Nginx
+
+```yaml
 - name: Setup Docker Container for Nginx
   hosts: all
   become: yes
@@ -8,6 +139,7 @@ Day 09 — Docker Integration with Jenkins & GitLab
       docker_image:
         name: nginx
         source: pull
+
     - name: Run Nginx container
       docker_container:
         name: nginx-container
@@ -15,10 +147,14 @@ Day 09 — Docker Integration with Jenkins & GitLab
         state: started
         published_ports:
           - "8080:80"
+```
+
 🔹 Terraform — EC2 with Auto Scaling Group
+
+```hcl
 resource "aws_launch_configuration" "example" {
-  name = "example-config"
-  image_id = "ami-0abcd1234abcd1234"
+  name          = "example-config"
+  image_id      = "ami-0abcd1234abcd1234"
   instance_type = "t3.medium"
 }
 
@@ -29,7 +165,11 @@ resource "aws_autoscaling_group" "example" {
   vpc_zone_identifier  = ["subnet-12345678"]
   launch_configuration = aws_launch_configuration.example.id
 }
+```
+
 🔹 Kubernetes — Horizontal Pod Autoscaler (HPA)
+
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -49,9 +189,7 @@ spec:
           image: nginx
           ports:
             - containerPort: 80
-
 ---
-
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -63,8 +201,18 @@ spec:
     name: pathnex-deployment
   minReplicas: 1
   maxReplicas: 10
-  targetCPUUtilizationPercentage: 50
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+```
+
 🔹 Jenkinsfile — Deploy to Kubernetes
+
+```groovy
 pipeline {
     agent any
     stages {
@@ -77,7 +225,11 @@ pipeline {
         }
     }
 }
+```
+
 🔹 GitLab CI/CD — Deploy to Kubernetes
+
+```yaml
 stages:
   - deploy
 
@@ -85,11 +237,13 @@ deploy:
   stage: deploy
   script:
     - kubectl apply -f kubernetes/deployment.yaml
+```
 
+🔹 Docker — Environment Variables
 
-🔹 Docker
-# Environment Variables
+```dockerfile
 FROM ubuntu:22.04
 ENV INSTITUTE=Pathnex
 ENV COURSE=DevOps
 CMD echo "$INSTITUTE - $COURSE"
+```
